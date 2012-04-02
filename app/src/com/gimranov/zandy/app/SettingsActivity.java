@@ -16,37 +16,66 @@
  ******************************************************************************/
 package com.gimranov.zandy.app;
 
-import android.app.AlertDialog;
-import android.app.Dialog;
-import android.content.DialogInterface;
+import java.util.List;
+
+import android.app.DialogFragment;
 import android.content.Intent;
 import android.os.Bundle;
 import android.preference.PreferenceActivity;
-import android.util.Log;
+import android.preference.PreferenceFragment;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
+import android.widget.LinearLayout;
 
 import com.gimranov.zandy.app.data.Database;
 
-public class SettingsActivity extends PreferenceActivity implements OnClickListener {
+public class SettingsActivity extends PreferenceActivity implements OnClickListener, DialogClickMethods {
 	
-	private static final String TAG = "com.gimranov.zandy.app.SettingsActivity";
 
-	static final int DIALOG_CONFIRM_DELETE = 5;
 
      @Override
      public void onCreate(Bundle savedInstanceState) {
          super.onCreate(savedInstanceState);  
 
-         addPreferencesFromResource(R.xml.settings);
-         setContentView(R.layout.preferences);
-         
-         Button requestButton = (Button) findViewById(R.id.requestQueue);
+         LinearLayout linLayout=new LinearLayout(this);
+         Button requestButton = new Button(this);
  		 requestButton.setOnClickListener(this);
+ 		 requestButton.setId(R.id.requestQueue);
+ 		 requestButton.setText(R.string.sync_pending_requests);
 
-         Button resetButton = (Button) findViewById(R.id.resetDatabase);
+         Button resetButton = new Button(this);
  		 resetButton.setOnClickListener(this);
+ 		 resetButton.setId(R.id.resetDatabase);
+ 		 resetButton.setText(R.string.settings_reset_database);
+         linLayout.addView(requestButton);
+         linLayout.addView(resetButton);
+         setListFooter(linLayout);
+     }
+     
+     @Override
+     public void onBuildHeaders(List<Header> target) {
+         loadHeadersFromResource(R.xml.preference_headers, target);
+     }
+
+     public static class Prefs1Fragment extends PreferenceFragment {
+         @Override
+         public void onCreate(Bundle savedInstanceState) {
+             super.onCreate(savedInstanceState);
+
+             // Load the preferences from an XML resource
+             addPreferencesFromResource(R.xml.settings);
+         }
+     }
+     
+     public static class Prefs2Fragment extends PreferenceFragment {
+         @Override
+         public void onCreate(Bundle savedInstanceState) {
+             super.onCreate(savedInstanceState);
+
+             // Load the preferences from an XML resource
+             addPreferencesFromResource(R.xml.settings2);
+         }
      }
      
 	public void onClick(View v) {
@@ -54,33 +83,27 @@ public class SettingsActivity extends PreferenceActivity implements OnClickListe
 			Intent i = new Intent(getApplicationContext(), RequestActivity.class);
 			startActivity(i);
 		} else if (v.getId() == R.id.resetDatabase) {
-			showDialog(DIALOG_CONFIRM_DELETE);
+			final Bundle bundle=new Bundle();
+			bundle.putInt("id",ZandyDialogFragment.DIALOG_CONFIRM_DELETE);
+			bundle.putInt("title",R.string.settings_reset_database_warning);
+	        DialogFragment newFragment = ZandyDialogFragment.newInstance(this,bundle);
+	        newFragment.show(getFragmentManager(), "settings_reset_database_warning");
 		}
 	}
 	
-	protected Dialog onCreateDialog(int id) {
-		AlertDialog dialog;
+	public void doPositiveClick(Bundle bundle) {
+		Database db = new Database(getBaseContext());
+		db.resetAllData();
+		finish();
+	}
+
+	public void doNegativeClick(Bundle bundle) {
+		// TODO Auto-generated method stub
 		
-		switch (id) {
-		case DIALOG_CONFIRM_DELETE:
-			dialog = new AlertDialog.Builder(this)
-			// TODO i18n
-		    	    .setTitle(getResources().getString(R.string.settings_reset_database_warning))
-		    	    .setPositiveButton(getResources().getString(R.string.menu_delete), new DialogInterface.OnClickListener() {
-						public void onClick(DialogInterface dialog, int whichButton) {
-							Database db = new Database(getBaseContext());
-							db.resetAllData();
-							finish();
-		    	        }
-		    	    }).setNegativeButton(getResources().getString(R.string.cancel), new DialogInterface.OnClickListener() {
-		    	        public void onClick(DialogInterface dialog, int whichButton) {
-		    	        	// do nothing
-		    	        }
-		    	    }).create();
-			return dialog;
-		default:
-			Log.e(TAG, "Invalid dialog requested");
-			return null;
-		}
+	}
+
+	public void doNeutralClick(Bundle bundle) {
+		// TODO Auto-generated method stub
+		
 	}
 }

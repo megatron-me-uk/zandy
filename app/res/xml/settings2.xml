@@ -1,0 +1,47 @@
+<!--
+  This file is part of Zandy.
+  
+  Zandy is free software: you can redistribute it and/or modify
+  it under the terms of the GNU Affero General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+  
+  Zandy is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU Affero General Public License for more details.
+  
+  You should have received a copy of the GNU Affero General Public License
+  along with Zandy.  If not, see <http://www.gnu.org/licenses/>.
+-->
+<PreferenceScreen
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        android:title="Webdav Settings">
+<PreferenceCategory >
+        <CheckBoxPreference
+                android:key="webdav_enabled"
+                android:title="@string/settings_webdav_enabled"
+                android:summary="@string/settings_webdav_enabled_desc" />
+
+        <EditTextPreference
+                android:key="webdav_path"
+                android:title="@string/settings_webdav_path"
+                android:summary="@string/settings_webdav_path_desc"
+                android:inputType="textUri" />
+        
+        <EditTextPreference
+                android:key="webdav_username"
+                android:title="@string/settings_webdav_username"
+                android:summary="@string/settings_webdav_username_desc" />
+        
+        <EditTextPreference
+                android:key="webdav_password"
+                android:title="@string/settings_webdav_password"
+                android:summary="@string/settings_webdav_password_desc"
+                android:password="true" />
+      <!--   <CheckBoxPreference
+                android:key="webdav_ssl_override"
+                android:title="@string/settings_webdav_ssl_override"
+                android:summary="@string/settings_webdav_ssl_override_desc" />-->
+</PreferenceCategory>
+</PreferenceScreen>
