@@ -17,7 +17,9 @@
 <PreferenceScreen
         xmlns:android="http://schemas.android.com/apk/res/android"
         android:title="Webdav Settings">
-<PreferenceCategory >
+<PreferenceCategory 
+            android:title="@string/settings_webdav"
+ 			android:summary="">
         <CheckBoxPreference
                 android:key="webdav_enabled"
                 android:title="@string/settings_webdav_enabled"

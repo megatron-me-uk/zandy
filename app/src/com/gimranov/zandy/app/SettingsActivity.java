@@ -16,15 +16,15 @@
  ******************************************************************************/
 package com.gimranov.zandy.app;
 
-import java.util.List;
 
-import android.app.DialogFragment;
+import android.support.v4.app.DialogFragment;
+import android.support.v4.app.FragmentManager;
 import android.content.Intent;
 import android.os.Bundle;
 import android.preference.PreferenceActivity;
-import android.preference.PreferenceFragment;
 import android.view.View;
 import android.view.View.OnClickListener;
+import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.LinearLayout;
 
@@ -32,11 +32,15 @@ import com.gimranov.zandy.app.data.Database;
 
 public class SettingsActivity extends PreferenceActivity implements OnClickListener, DialogClickMethods {
 	
-
+	FragmentManager fm;
 
      @Override
      public void onCreate(Bundle savedInstanceState) {
-         super.onCreate(savedInstanceState);  
+    	 //fm.();//maybe do something here??
+         super.onCreate(savedInstanceState);
+         addPreferencesFromResource(R.xml.settings);
+         addPreferencesFromResource(R.xml.settings2);
+
 
          LinearLayout linLayout=new LinearLayout(this);
          Button requestButton = new Button(this);
@@ -50,10 +54,11 @@ public class SettingsActivity extends PreferenceActivity implements OnClickListe
  		 resetButton.setText(R.string.settings_reset_database);
          linLayout.addView(requestButton);
          linLayout.addView(resetButton);
-         setListFooter(linLayout);
+         this.addContentView(linLayout, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.FILL_PARENT,
+        		 ViewGroup.LayoutParams.WRAP_CONTENT));
      }
      
-     @Override
+/*     @Override
      public void onBuildHeaders(List<Header> target) {
          loadHeadersFromResource(R.xml.preference_headers, target);
      }
@@ -76,7 +81,7 @@ public class SettingsActivity extends PreferenceActivity implements OnClickListe
              // Load the preferences from an XML resource
              addPreferencesFromResource(R.xml.settings2);
          }
-     }
+     }*/
      
 	public void onClick(View v) {
 		if (v.getId() == R.id.requestQueue) {
@@ -87,7 +92,7 @@ public class SettingsActivity extends PreferenceActivity implements OnClickListe
 			bundle.putInt("id",ZandyDialogFragment.DIALOG_CONFIRM_DELETE);
 			bundle.putInt("title",R.string.settings_reset_database_warning);
 	        DialogFragment newFragment = ZandyDialogFragment.newInstance(this,bundle);
-	        newFragment.show(getFragmentManager(), "settings_reset_database_warning");
+	        newFragment.show(newFragment.getFragmentManager(), "settings_reset_database_warning");
 		}
 	}
 	

@@ -16,31 +16,15 @@
  ******************************************************************************/
 package com.gimranov.zandy.app;
 
-import java.io.BufferedInputStream;
 import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.Authenticator;
-import java.net.MalformedURLException;
-import java.net.PasswordAuthentication;
-import java.net.URL;
-import java.net.URLConnection;
 import java.util.ArrayList;
-import java.util.Enumeration;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipFile;
 
-import org.apache.http.util.ByteArrayBuffer;
 import org.json.JSONException;
 
-import android.app.AlertDialog;
-import android.app.Dialog;
-import android.app.DialogFragment;
-import android.app.ListActivity;
+import android.support.v4.app.FragmentActivity;
+import android.support.v4.app.ListFragment;
 import android.app.ProgressDialog;
 import android.content.ActivityNotFoundException;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Uri;
@@ -48,8 +32,6 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.preference.PreferenceManager;
-import android.text.Editable;
-import android.util.Base64;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -57,7 +39,6 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
-import android.webkit.MimeTypeMap;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
 import android.widget.AdapterView.OnItemLongClickListener;
@@ -84,7 +65,7 @@ import com.gimranov.zandy.app.task.ZoteroAPITask;
  * @author ajlyon
  *
  */
-public class AttachmentActivity extends ListActivity implements DialogClickMethods {
+public class AttachmentActivity extends FragmentActivity implements DialogClickMethods {
 
 	private static final String TAG = "com.gimranov.zandy.app.AttachmentActivity";
 	
@@ -92,6 +73,7 @@ public class AttachmentActivity extends ListActivity implements DialogClickMetho
 	private ProgressDialog mProgressDialog;
 	private ProgressThread progressThread;
 	private Database db;
+	ListFragment listFragment;
 	
 	/** 
 	 * For <= Android 2.1 (API 7), we can't pass bundles to showDialog(), so set this instead
@@ -130,7 +112,8 @@ public class AttachmentActivity extends ListActivity implements DialogClickMetho
          * Since it's no longer a simple TextView, we need to override getView, but
          * we can do that anonymously.
          */
-        setListAdapter(new ArrayAdapter<Attachment>(this, R.layout.list_attach, rows) {
+        listFragment=new ListFragment();
+        listFragment.setListAdapter(new ArrayAdapter<Attachment>(this, R.layout.list_attach, rows) {
         	@Override
         	public View getView(int position, View convertView, ViewGroup parent) {
         		View row;
@@ -177,7 +160,7 @@ public class AttachmentActivity extends ListActivity implements DialogClickMetho
         	}
         });
         
-        ListView lv = getListView();
+        ListView lv = listFragment.getListView();
         lv.setTextFilterEnabled(true);
         lv.setOnItemClickListener(new OnItemClickListener() {
         	// Warning here because Eclipse can't tell whether my ArrayAdapter is
@@ -228,7 +211,7 @@ public class AttachmentActivity extends ListActivity implements DialogClickMetho
         				b.putInt("id",ZandyDialogFragment.DIALOG_NOTE);
 		        		b.putInt("title",R.string.view_online_warning);
         				ZandyDialogFragment newFragment = ZandyDialogFragment.newInstance(AttachmentActivity.this,b);
-        		        newFragment.show(getFragmentManager(), "view_online_warning");
+        		        newFragment.show(getSupportFragmentManager(), "view_online_warning");
         			}
 				}
         		
@@ -242,7 +225,7 @@ public class AttachmentActivity extends ListActivity implements DialogClickMetho
 					b.putInt("id",ZandyDialogFragment.DIALOG_NOTE);
 					b.putInt("title",R.string.view_online_warning);
     				ZandyDialogFragment newFragment = ZandyDialogFragment.newInstance(AttachmentActivity.this,b);
-    		        newFragment.show(getFragmentManager(), "view_online_warning");
+    		        newFragment.show(getSupportFragmentManager(), "view_online_warning");
 				}
 				return true;
         	}
@@ -326,7 +309,7 @@ public class AttachmentActivity extends ListActivity implements DialogClickMetho
 	 */
 	@SuppressWarnings("unchecked")
 	private void refreshView() {
-		ArrayAdapter<Attachment> la = (ArrayAdapter<Attachment>) getListAdapter();
+		ArrayAdapter<Attachment> la = (ArrayAdapter<Attachment>) listFragment.getListAdapter();
 		la.clear();
 		for (Attachment at : Attachment.forItem(item, db)) {
 			la.add(at);
@@ -356,8 +339,8 @@ public class AttachmentActivity extends ListActivity implements DialogClickMetho
 				Bundle bundle = msg.getData();
 				bundle.putInt("id",ZandyDialogFragment.DIALOG_CONFIRM_NAVIGATE);
 				bundle.putInt("title", R.string.view_online_warning);
-		        DialogFragment newFragment = ZandyDialogFragment.newInstance(AttachmentActivity.this,bundle);
-		        newFragment.show(getFragmentManager(), "DIALOG_CONFIRM_NAVIGATE");
+		        ZandyDialogFragment newFragment = ZandyDialogFragment.newInstance(AttachmentActivity.this,bundle);
+		        newFragment.show(getSupportFragmentManager(), "DIALOG_CONFIRM_NAVIGATE");
 				
 				refreshView();
 				break;
@@ -414,8 +397,8 @@ public class AttachmentActivity extends ListActivity implements DialogClickMetho
 			input.setText(b.getString("content"), BufferType.EDITABLE);
 			b.putInt("id",ZandyDialogFragment.DIALOG_NOTE);
 			b.putInt("title",R.string.note);
-	        DialogFragment newFragment = ZandyDialogFragment.newInstance(this,b);
-	        newFragment.show(getFragmentManager(), "note");
+	        ZandyDialogFragment newFragment = ZandyDialogFragment.newInstance(this,b);
+	        newFragment.show(getSupportFragmentManager(), "note");
             return true;
         case R.id.do_prefs:
             startActivity(new Intent(this, SettingsActivity.class));
@@ -446,7 +429,7 @@ public class AttachmentActivity extends ListActivity implements DialogClickMetho
     	case ZandyDialogFragment.DIALOG_CONFIRM_DELETE:
     		Attachment a = Attachment.load(bundle.getString("attachmentKey"), db);
     		a.delete(db);
-    		ArrayAdapter<Attachment> la = (ArrayAdapter<Attachment>) getListAdapter();
+    		ArrayAdapter<Attachment> la = (ArrayAdapter<Attachment>) listFragment.getListAdapter();
     		la.clear();
     		for (Attachment at : Attachment.forItem(Item.load(bundle.getString("itemKey"), db), db)) {
     			la.add(at);
@@ -466,7 +449,7 @@ public class AttachmentActivity extends ListActivity implements DialogClickMetho
     			att.dirty = APIRequest.API_DIRTY;
     			att.save(db);
     		}
-    		ArrayAdapter<Attachment> la1 = (ArrayAdapter<Attachment>) getListAdapter();
+    		ArrayAdapter<Attachment> la1 = (ArrayAdapter<Attachment>) listFragment.getListAdapter();
     		la1.clear();
     		for (Attachment a1 : Attachment.forItem(Item.load(bundle.getString("itemKey"), db), db)) {
     			la1.add(a1);
@@ -505,8 +488,8 @@ public class AttachmentActivity extends ListActivity implements DialogClickMetho
 	            bundle.putInt("id", ZandyDialogFragment.DIALOG_CONFIRM_DELETE);
 	            bundle.putInt("title", R.string.attachment_delete_confirm);
 	        	//removeDialog(DIALOG_CONFIRM_DELETE);
-		        DialogFragment newFragment = ZandyDialogFragment.newInstance(this,bundle);
-		        newFragment.show(getFragmentManager(), "attachment_delete_confirm");
+		        ZandyDialogFragment newFragment = ZandyDialogFragment.newInstance(this,bundle);
+		        newFragment.show(getSupportFragmentManager(), "attachment_delete_confirm");
 		        break;
 			case ZandyDialogFragment.DIALOG_CONFIRM_DELETE:
 				//do nothing

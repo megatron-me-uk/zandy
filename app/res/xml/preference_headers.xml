@@ -13,7 +13,7 @@
   
   You should have received a copy of the GNU Affero General Public License
   along with Zandy.  If not, see <http://www.gnu.org/licenses/>.
--->
+
 <preference-headers
         xmlns:android="http://schemas.android.com/apk/res/android"
         android:title="Settings">
@@ -25,4 +25,7 @@
             android:title="@string/settings_webdav"
  			android:summary=""/>
 
-</preference-headers>
+</preference-headers>-->
+<preference-headers
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        android:title="Settings"/>
