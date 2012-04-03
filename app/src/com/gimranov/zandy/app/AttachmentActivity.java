@@ -36,6 +36,7 @@ import org.json.JSONException;
 
 import android.app.AlertDialog;
 import android.app.Dialog;
+import android.app.DialogFragment;
 import android.app.ListActivity;
 import android.app.ProgressDialog;
 import android.content.ActivityNotFoundException;
@@ -83,15 +84,9 @@ import com.gimranov.zandy.app.task.ZoteroAPITask;
  * @author ajlyon
  *
  */
-public class AttachmentActivity extends ListActivity {
+public class AttachmentActivity extends ListActivity implements DialogClickMethods {
 
 	private static final String TAG = "com.gimranov.zandy.app.AttachmentActivity";
-	
-	static final int DIALOG_CONFIRM_NAVIGATE = 4;	
-	static final int DIALOG_FILE_PROGRESS = 6;	
-	static final int DIALOG_CONFIRM_DELETE = 5;	
-	static final int DIALOG_NOTE = 3;
-	static final int DIALOG_NEW = 1;
 	
 	public Item item;
 	private ProgressDialog mProgressDialog;
@@ -101,7 +96,8 @@ public class AttachmentActivity extends ListActivity {
 	/** 
 	 * For <= Android 2.1 (API 7), we can't pass bundles to showDialog(), so set this instead
 	 */
-	private Bundle b = new Bundle();
+	//having a flexible container available over more than one thread could make debugging crazy difficult
+	//private Bundle b = new Bundle();
 	
 	private ArrayList<File> tmpFiles;
 	
@@ -228,8 +224,11 @@ public class AttachmentActivity extends ListActivity {
         					|| linkMode == Attachment.MODE_IMPORTED_URL) {
         				loadFileAttachment(b);
         			} else {
-        				AttachmentActivity.this.b = b;
-        				showDialog(DIALOG_CONFIRM_NAVIGATE);
+        				//AttachmentActivity.this.b = b;
+        				b.putInt("id",ZandyDialogFragment.DIALOG_NOTE);
+		        		b.putInt("title",R.string.view_online_warning);
+        				ZandyDialogFragment newFragment = ZandyDialogFragment.newInstance(AttachmentActivity.this,b);
+        		        newFragment.show(getFragmentManager(), "view_online_warning");
         			}
 				}
         		
@@ -238,9 +237,12 @@ public class AttachmentActivity extends ListActivity {
 					b.putString("attachmentKey", row.key);
 					b.putString("itemKey", itemKey);
 					b.putString("content", row.content.optString("note", ""));
-					removeDialog(DIALOG_NOTE);
-					AttachmentActivity.this.b = b;
-					showDialog(DIALOG_NOTE);
+					//removeDialog(DIALOG_NOTE);
+					//AttachmentActivity.this.b = b;
+					b.putInt("id",ZandyDialogFragment.DIALOG_NOTE);
+					b.putInt("title",R.string.view_online_warning);
+    				ZandyDialogFragment newFragment = ZandyDialogFragment.newInstance(AttachmentActivity.this,b);
+    		        newFragment.show(getFragmentManager(), "view_online_warning");
 				}
 				return true;
         	}
@@ -269,131 +271,6 @@ public class AttachmentActivity extends ListActivity {
     	if (db == null) db = new Database(this);
     	super.onResume();
     }
-    
-	protected Dialog onCreateDialog(int id) {
-		final String attachmentKey = b.getString("attachmentKey");
-		final String itemKey = b.getString("itemKey");
-		final String content = b.getString("content");
-		final String mode = b.getString("mode");
-		AlertDialog dialog;
-		switch (id) {			
-		case DIALOG_CONFIRM_NAVIGATE:
-			dialog = new AlertDialog.Builder(this)
-		    	    .setTitle(getResources().getString(R.string.view_online_warning))
-		    	    .setPositiveButton(getResources().getString(R.string.view), new DialogInterface.OnClickListener() {
-						public void onClick(DialogInterface dialog, int whichButton) {
-		        			// The behavior for invalid URIs might be nasty, but
-		        			// we'll cross that bridge if we come to it.
-							try {
-								Uri uri = Uri.parse(content);
-								startActivity(new Intent(Intent.ACTION_VIEW)
-			        							.setData(uri));
-							} catch (ActivityNotFoundException e) {
-								// There can be exceptions here; not sure what would prompt us to have
-								// URIs that the browser can't load, but it apparently happens.
-								Toast.makeText(getApplicationContext(),
-										getResources().getString(R.string.attachment_intent_failed_for_uri, content), 
-				        				Toast.LENGTH_SHORT).show();
-							}
-		    	        }
-		    	    }).setNeutralButton(getResources().getString(R.string.cancel), new DialogInterface.OnClickListener() {
-		    	        public void onClick(DialogInterface dialog, int whichButton) {
-		    	        	// do nothing
-		    	        }
-		    	    }).create();
-			return dialog;
-		case DIALOG_CONFIRM_DELETE:
-			dialog = new AlertDialog.Builder(this)
-		    	    .setTitle(getResources().getString(R.string.attachment_delete_confirm))
-		    	    .setPositiveButton(getResources().getString(R.string.menu_delete), new DialogInterface.OnClickListener() {
-						@SuppressWarnings("unchecked")
-						public void onClick(DialogInterface dialog, int whichButton) {
-							Attachment a = Attachment.load(attachmentKey, db);
-							a.delete(db);
-		    	            ArrayAdapter<Attachment> la = (ArrayAdapter<Attachment>) getListAdapter();
-		    	            la.clear();
-		    	            for (Attachment at : Attachment.forItem(Item.load(itemKey, db), db)) {
-		    	            	la.add(at);
-		    	            }
-		    	        }
-		    	    }).setNegativeButton(getResources().getString(R.string.cancel), new DialogInterface.OnClickListener() {
-		    	        public void onClick(DialogInterface dialog, int whichButton) {
-		    	        	// do nothing
-		    	        }
-		    	    }).create();
-			return dialog;
-		case DIALOG_NOTE:
-			final EditText input = new EditText(this);
-			input.setText(content, BufferType.EDITABLE);
-			
-			AlertDialog.Builder builder = new AlertDialog.Builder(this)
-	    	    .setTitle(getResources().getString(R.string.note))
-	    	    .setView(input)
-	    	    .setPositiveButton(getResources().getString(R.string.ok), new DialogInterface.OnClickListener() {
-					@SuppressWarnings("unchecked")
-					public void onClick(DialogInterface dialog, int whichButton) {
-						Editable value = input.getText();
-	    	            String fixed = value.toString().replaceAll("\n\n", "\n<br>");
-	    	            if (mode != null && mode.equals("new")) {
-							Log.d(TAG, "Attachment created with parent key: "+itemKey);
-							Attachment att = new Attachment(getBaseContext(), "note", itemKey);
-		    	            att.setNoteText(fixed);
-		    	            att.dirty = APIRequest.API_NEW;
-		    	            att.save(db);
-						} else {
-							Attachment att = Attachment.load(attachmentKey, db);
-		    	            att.setNoteText(fixed);
-		    	            att.dirty = APIRequest.API_DIRTY;
-		    	            att.save(db);
-						}
-	    	            ArrayAdapter<Attachment> la = (ArrayAdapter<Attachment>) getListAdapter();
-	    	            la.clear();
-	    	            for (Attachment a : Attachment.forItem(Item.load(itemKey, db), db)) {
-	    	            	la.add(a);
-	    	            }
-	    	            la.notifyDataSetChanged();
-	    	        }
-	    	    }).setNeutralButton(getResources().getString(R.string.cancel),
-	    	    		new DialogInterface.OnClickListener() {
-	    	        public void onClick(DialogInterface dialog, int whichButton) {
-	    	        	// do nothing
-	    	        }
-	    	    });
-			// We only want the delete option when this isn't a new note
-			if (mode == null || !"new".equals(mode)) {
-				builder = builder.setNegativeButton(getResources().getString(R.string.menu_delete), new DialogInterface.OnClickListener() {
-					public void onClick(DialogInterface dialog, int whichButton) {
-	    	            Bundle b = new Bundle();
-	    	            b.putString("attachmentKey", attachmentKey);
-	    	            b.putString("itemKey", itemKey);
-	    	        	removeDialog(DIALOG_CONFIRM_DELETE);
-	    	        	AttachmentActivity.this.b = b;
-	    	        	showDialog(DIALOG_CONFIRM_DELETE);
-	    	        }
-	    	    });
-			}
-			dialog = builder.create();
-			return dialog;
-		case DIALOG_FILE_PROGRESS:
-			mProgressDialog = new ProgressDialog(this);
-			mProgressDialog.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
-			mProgressDialog.setMessage(getResources().getString(R.string.attachment_downloading, b.getString("title")));
-			mProgressDialog.setIndeterminate(true);
-			return mProgressDialog;
-		default:
-			Log.e(TAG, "Invalid dialog requested");
-			return null;
-		}
-	}
-	
-	protected void onPrepareDialog(int id, Dialog dialog) {
-		switch(id) {
-		case DIALOG_FILE_PROGRESS:
-			mProgressDialog.setMessage(getResources().getString(R.string.attachment_downloading, b.getString("title")));
-			progressThread = new ProgressThread(handler, b);
-			progressThread.start();
-		}
-	}
 	
 	private void showAttachment(Attachment att) {
 		if (att.status == Attachment.LOCAL) {
@@ -430,8 +307,17 @@ public class AttachmentActivity extends ListActivity {
 				// Zero-length or nonexistent gives length == 0
 				|| (attFile != null && attFile.length() == 0)) {				
 			Log.d(TAG,"Starting to try and download attachment (status: "+att.status+", fn: "+att.filename+")");
-			this.b = b;
-			showDialog(DIALOG_FILE_PROGRESS);
+			//this.b = b;
+
+			mProgressDialog = new ProgressDialog(this);
+			mProgressDialog.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
+			mProgressDialog.setMessage(getResources().getString(R.string.attachment_downloading, R.string.attachment_downloading));
+			mProgressDialog.setIndeterminate(true);
+			
+			SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
+			progressThread = new ProgressThread(handler, b, settings, db, tmpFiles);
+			progressThread.start();
+
 		} else showAttachment(att);
 	}
 	
@@ -451,8 +337,9 @@ public class AttachmentActivity extends ListActivity {
 		public void handleMessage(Message msg) {
 			switch (msg.arg2) {
 			case ProgressThread.STATE_DONE:
-				if(mProgressDialog.isShowing())
-					dismissDialog(DIALOG_FILE_PROGRESS);
+				if(mProgressDialog.isShowing()){
+					//dismiss
+				}
 				refreshView();
 				if (null != msg.obj)
 					showAttachment((Attachment)msg.obj);
@@ -464,11 +351,13 @@ public class AttachmentActivity extends ListActivity {
 	    				Toast.LENGTH_SHORT).show();
 	        	
 				if(mProgressDialog.isShowing())
-					dismissDialog(DIALOG_FILE_PROGRESS);
-				
+					mProgressDialog.dismiss();
 				// Let's try to fall back on an online version
-				AttachmentActivity.this.b = msg.getData();
-				showDialog(DIALOG_CONFIRM_NAVIGATE);
+				Bundle bundle = msg.getData();
+				bundle.putInt("id",ZandyDialogFragment.DIALOG_CONFIRM_NAVIGATE);
+				bundle.putInt("title", R.string.view_online_warning);
+		        DialogFragment newFragment = ZandyDialogFragment.newInstance(AttachmentActivity.this,bundle);
+		        newFragment.show(getFragmentManager(), "DIALOG_CONFIRM_NAVIGATE");
 				
 				refreshView();
 				break;
@@ -490,196 +379,7 @@ public class AttachmentActivity extends ListActivity {
 		}
 	};
 	
-	private class ProgressThread extends Thread {
-		Handler mHandler;
-		Bundle arguments;
-		final static int STATE_DONE = 5;
-		final static int STATE_FAILED = 3;
-		final static int STATE_RUNNING = 1;
-		final static int STATE_UNZIPPING = 6;
-		
-		ProgressThread(Handler h, Bundle b) {
-			mHandler = h;
-			arguments = b;
-		}
-		
-		@SuppressWarnings("unchecked")
-		public void run() {
 
-			// Setup
-			final String attachmentKey = arguments.getString("attachmentKey");
-			final String mode = arguments.getString("mode");
-			URL url;
-			File file;
-			String urlstring;
-			Attachment att = Attachment.load(attachmentKey, db);
-			
-			String sanitized = att.title.replace(' ', '_');
-			
-			// If no 1-6-character extension, try to add one using MIME type
-			if (!sanitized.matches(".*\\.[a-zA-Z0-9]{1,6}$")) {
-				String extension = MimeTypeMap.getSingleton().getExtensionFromMimeType(att.getType());
-				if (extension != null) sanitized = sanitized + "." + extension;
-			}
-			sanitized = sanitized.replaceFirst("^(.*?)(\\.?[^.]*)$", "$1"+"_"+att.key+"$2");
-			
-			file = new File(ServerCredentials.sDocumentStorageDir,sanitized);
-			if (!ServerCredentials.sBaseStorageDir.exists())
-				ServerCredentials.sBaseStorageDir.mkdirs();
-			if (!ServerCredentials.sDocumentStorageDir.exists())
-				ServerCredentials.sDocumentStorageDir.mkdirs();
-			
-			final SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
-			
-			if ("webdav".equals(mode)) {
-				//urlstring = "https://dfs.humnet.ucla.edu/home/ajlyon/zotero/223RMC7C.zip";
-				//urlstring = "http://www.gimranov.com/research/zotero/223RMC7C.zip";
-				urlstring = settings.getString("webdav_path", "")+"/"+att.key+".zip";
-				
-				Authenticator.setDefault (new Authenticator() {
-				    protected PasswordAuthentication getPasswordAuthentication() {
-				        return new PasswordAuthentication (settings.getString("webdav_username", ""),
-				        		settings.getString("webdav_password", "").toCharArray());
-				    }
-				});
-			} else {
-				urlstring = att.url+"?key="+settings.getString("user_key","");
-			}
-			
-			try {
-				try {
-					url = new URL(urlstring);
-				} catch (MalformedURLException e) {
-					// Alert that we don't have a valid download URL and return
-					Message msg = mHandler.obtainMessage();
-		        	msg.arg2 = STATE_FAILED;
-		        	msg.setData(arguments);
-		        	mHandler.sendMessage(msg);
-		        	
-		        	Log.e(TAG, "Download URL not valid: "+urlstring, e);
-		        	return;
-				}
-				//this is the downloader method
-                long startTime = System.currentTimeMillis();
-                Log.d(TAG, "download beginning");
-                Log.d(TAG, "download url:" + url.toString());
-                Log.d(TAG, "downloaded file name:" + file.getPath());
-                                
-                /* Open a connection to that URL. */
-                URLConnection ucon = url.openConnection();
-                ucon.setRequestProperty("User-Agent","Mozilla/5.0 ( compatible ) ");
-                ucon.setRequestProperty("Accept","*/*");
-                Message msg = mHandler.obtainMessage();
-                msg.arg1 = ucon.getContentLength();
-                msg.arg2 = STATE_RUNNING;
-                mHandler.sendMessage(msg);
-
-                /*
-                 * Define InputStreams to read from the URLConnection.
-                 */
-                InputStream is = ucon.getInputStream();
-                BufferedInputStream bis = new BufferedInputStream(is, 16000);
-
-                ByteArrayBuffer baf = new ByteArrayBuffer(50);
-                int current = 0;
-                
-                /*
-                 * Read bytes to the Buffer until there is nothing more to read(-1).
-                 * TODO read in chunks instead of byte by byte
-                 */
-                while ((current = bis.read()) != -1) {
-                        baf.append((byte) current);
-                        
-                    if (baf.length() % 2048 == 0) {
-                        msg = mHandler.obtainMessage();
-                        msg.arg1 = baf.length();
-                        mHandler.sendMessage(msg);
-                    }
-                }
-
-    			/* Save to temporary directory for WebDAV */
-    			if ("webdav".equals(mode)) {
-    				if (!ServerCredentials.sCacheDir.exists())
-    					ServerCredentials.sCacheDir.mkdirs();
-    				File tmpFile = File.createTempFile("zandy", ".zip",ServerCredentials.sCacheDir);
-    				// Keep track of temp files that we've created.
-    				if (tmpFiles == null) tmpFiles = new ArrayList<File>();
-    				tmpFiles.add(tmpFile);
-    				FileOutputStream fos = new FileOutputStream(tmpFile);
-                    fos.write(baf.toByteArray());
-                    fos.close();
-                    ZipFile zf = new ZipFile(tmpFile);
-                    
-                	Enumeration<ZipEntry> entries = (Enumeration<ZipEntry>) zf.entries();
-                    do {
-                    	ZipEntry entry = entries.nextElement();
-                        // Change the message to reflect that we're unzipping now
-                        msg = mHandler.obtainMessage();
-                        msg.arg1 = (int) entry.getSize();
-                        msg.arg2 = STATE_UNZIPPING;
-                        mHandler.sendMessage(msg);
-
-                    	String name64 = entry.getName();
-                    	byte[] byteName = Base64.decode(name64.getBytes(), 0, name64.length() - 5, Base64.DEFAULT);
-                    	String name = new String(byteName);
-                    	Log.d(TAG, "Found file "+name+" from encoded "+name64);
-                    	// If the linkMode is not an imported URL (snapshot) and the MIME type isn't text/html,
-                    	// then we unzip it and we're happy. If either of the preceding is true, we skip the file
-                    	// unless the filename includes .htm (covering .html automatically)
-                    	if ( (!att.getType().equals("text/html")) || name.contains(".htm")) {
-                    		FileOutputStream fos2 = new FileOutputStream(file);
-                    		InputStream entryStream = zf.getInputStream(entry);
-                            ByteArrayBuffer baf2 = new ByteArrayBuffer(100);
-                            while ((current = entryStream.read()) != -1) {
-                            	baf2.append((byte) current);
-
-				if (baf2.length() % 2048 == 0) {
-					msg = mHandler.obtainMessage();
-					msg.arg1 = baf2.length();
-					mHandler.sendMessage(msg);
-				}
-                            }
-                            fos2.write(baf2.toByteArray());
-                            fos2.close();
-                            Log.d(TAG, "Finished reading file");
-                    	} else {
-                    		Log.d(TAG, "Skipping file: "+name);
-                    	}
-                    } while (entries.hasMoreElements());
-                    zf.close();
-		    // We remove the file from the ArrayList if deletion succeeded;
-                    // otherwise deletion is put off until the activity exits.
-                    if (tmpFile.delete()) {
-                    	tmpFiles.remove(tmpFile);
-                    }
-    			} else {
-                    FileOutputStream fos = new FileOutputStream(file);
-                    fos.write(baf.toByteArray());
-                    fos.close();
-                }
-    			Log.d(TAG, "download ready in "
-                        + ((System.currentTimeMillis() - startTime) / 1000)
-                        + " sec");
-	        } catch (IOException e) {
-	                Log.e(TAG, "Error: ",e);
-	        }
-			att.filename = file.getPath();
-			File newFile = new File(att.filename);
-        	Message msg = mHandler.obtainMessage();
-			if (newFile.length() > 0) {
-				att.status = Attachment.LOCAL;
-				Log.d(TAG,"File downloaded: "+att.filename);
-				msg.obj = att;
-			} else {
-				Log.d(TAG, "File not downloaded: "+att.filename);
-				att.status = Attachment.AVAILABLE;
-				msg.obj = null;
-			}
-			att.save(db);
-        	msg.arg2 = STATE_DONE;
-        	mHandler.sendMessage(msg);
-		}
-	}
                
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -708,9 +408,14 @@ public class AttachmentActivity extends ListActivity {
         case R.id.do_new:
 			b.putString("itemKey", this.item.getKey());
 			b.putString("mode", "new");
-        	removeDialog(DIALOG_NOTE);
-        	this.b = b;
-        	showDialog(DIALOG_NOTE);
+			//getFragmentManager().//removeDialog()?
+        	//this.b = b;
+			final EditText input = new EditText(this);
+			input.setText(b.getString("content"), BufferType.EDITABLE);
+			b.putInt("id",ZandyDialogFragment.DIALOG_NOTE);
+			b.putInt("title",R.string.note);
+	        DialogFragment newFragment = ZandyDialogFragment.newInstance(this,b);
+	        newFragment.show(getFragmentManager(), "note");
             return true;
         case R.id.do_prefs:
             startActivity(new Intent(this, SettingsActivity.class));
@@ -719,4 +424,96 @@ public class AttachmentActivity extends ListActivity {
             return super.onOptionsItemSelected(item);
         }
     }
+
+    @Override
+    public void doPositiveClick(Bundle bundle) {
+    	switch(bundle.getInt("id")){
+    	case ZandyDialogFragment.DIALOG_CONFIRM_NAVIGATE:
+    		// The behavior for invalid URIs might be nasty, but
+    		// we'll cross that bridge if we come to it.
+    		try {
+    			Uri uri = Uri.parse(bundle.getString("content"));
+    			startActivity(new Intent(Intent.ACTION_VIEW)
+    			.setData(uri));
+    		} catch (ActivityNotFoundException e) {
+    			// There can be exceptions here; not sure what would prompt us to have
+    			// URIs that the browser can't load, but it apparently happens.
+    			Toast.makeText(getApplicationContext(),
+    					getResources().getString(R.string.attachment_intent_failed_for_uri, bundle.getString("content")), 
+    					Toast.LENGTH_SHORT).show();
+    		}
+    		break;
+    	case ZandyDialogFragment.DIALOG_CONFIRM_DELETE:
+    		Attachment a = Attachment.load(bundle.getString("attachmentKey"), db);
+    		a.delete(db);
+    		ArrayAdapter<Attachment> la = (ArrayAdapter<Attachment>) getListAdapter();
+    		la.clear();
+    		for (Attachment at : Attachment.forItem(Item.load(bundle.getString("itemKey"), db), db)) {
+    			la.add(at);
+    		}
+    		break;
+    	case ZandyDialogFragment.DIALOG_NOTE:
+    		String fixed = bundle.getString("fixed");
+    		if (bundle.getString("mode") != null && bundle.getString("mode").equals("new")) {
+    			Log.d(TAG, "Attachment created with parent key: "+bundle.getString("itemKey"));
+    			Attachment att = new Attachment(getBaseContext(), "note", bundle.getString("itemKey"));
+    			att.setNoteText(fixed);
+    			att.dirty = APIRequest.API_NEW;
+    			att.save(db);
+    		} else {
+    			Attachment att = Attachment.load(bundle.getString("attachmentKey"), db);
+    			att.setNoteText(fixed);
+    			att.dirty = APIRequest.API_DIRTY;
+    			att.save(db);
+    		}
+    		ArrayAdapter<Attachment> la1 = (ArrayAdapter<Attachment>) getListAdapter();
+    		la1.clear();
+    		for (Attachment a1 : Attachment.forItem(Item.load(bundle.getString("itemKey"), db), db)) {
+    			la1.add(a1);
+    		}
+    		la1.notifyDataSetChanged();
+    		break;
+    	default:
+    		Log.e(TAG, "Invalid dialog requested");
+    	}
+    }
+
+	@Override
+	public void doNeutralClick(Bundle bundle) {
+		// TODO Auto-generated method stub
+		switch (bundle.getInt("id"))
+		{
+			case ZandyDialogFragment.DIALOG_NOTE:
+				//do nothing
+				break;
+			case ZandyDialogFragment.DIALOG_CONFIRM_NAVIGATE:
+				//do nothing
+				break;
+		    default:
+		       	Log.e("doNeutralClick","Oops",new Exception(getResources().getString(bundle.getInt("title"))));
+		       	break;
+		}
+		
+	}
+	
+	@Override
+	public void doNegativeClick(Bundle bundle) {
+		// TODO Auto-generated method stub
+		switch (bundle.getInt("id"))
+		{
+			case ZandyDialogFragment.DIALOG_NOTE:
+	            bundle.putInt("id", ZandyDialogFragment.DIALOG_CONFIRM_DELETE);
+	            bundle.putInt("title", R.string.attachment_delete_confirm);
+	        	//removeDialog(DIALOG_CONFIRM_DELETE);
+		        DialogFragment newFragment = ZandyDialogFragment.newInstance(this,bundle);
+		        newFragment.show(getFragmentManager(), "attachment_delete_confirm");
+		        break;
+			case ZandyDialogFragment.DIALOG_CONFIRM_DELETE:
+				//do nothing
+				break;
+		    default:
+		       	Log.e("doNegativeClick","Oops",new Exception(getResources().getString(bundle.getInt("title"))));
+		       	break;
+		}
+	}
 }
