@@ -44,6 +44,7 @@ import android.widget.AdapterView.OnItemClickListener;
 import android.widget.AdapterView.OnItemLongClickListener;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.TextView;
@@ -68,12 +69,92 @@ import com.gimranov.zandy.app.task.ZoteroAPITask;
 public class AttachmentActivity extends FragmentActivity implements DialogClickMethods {
 
 	private static final String TAG = "com.gimranov.zandy.app.AttachmentActivity";
+
+	private static final int CONTENT_VIEW_ID = 1;
 	
 	public Item item;
+	public String itemKey;
 	private ProgressDialog mProgressDialog;
 	private ProgressThread progressThread;
 	private Database db;
-	ListFragment listFragment;
+	MyListFragment listFragment;
+	public class MyListFragment extends ListFragment {
+		public void onViewCreated(View view, Bundle savedInstanceState){
+			if(this.getListView()==null)
+				return;
+	        ListView lv = listFragment. getListView();
+	        lv.setTextFilterEnabled(true);
+	        lv.setOnItemClickListener(new OnItemClickListener() {
+	        	// Warning here because Eclipse can't tell whether my ArrayAdapter is
+	        	// being used with the correct parametrization.
+	        	@SuppressWarnings("unchecked")
+				public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+	        		// If we have a click on an entry, show its note
+	        		ArrayAdapter<Attachment> adapter = (ArrayAdapter<Attachment>) parent.getAdapter();
+	        		Attachment row = adapter.getItem(position);
+	        		
+	        		if (row.content.has("note")) {
+		    	    	Log.d(TAG, "Trying to start note view activity for: "+row.key);
+		    	    	Intent i = new Intent(getBaseContext(), NoteActivity.class);
+		    	    	i.putExtra("com.gimranov.zandy.app.attKey", row.key);//row.content.optString("note", ""));
+		    	    	startActivity(i);
+					}
+	        	}
+	        });
+	        lv.setOnItemLongClickListener(new OnItemLongClickListener() {
+	        	// Warning here because Eclipse can't tell whether my ArrayAdapter is
+	        	// being used with the correct parametrization.
+	        	@SuppressWarnings("unchecked")
+				public boolean onItemLongClick(AdapterView<?> parent, View view, int position, long id) {
+	        		// If we have a long click on an entry, do something...
+	        		ArrayAdapter<Attachment> adapter = (ArrayAdapter<Attachment>) parent.getAdapter();
+	        		Attachment row = adapter.getItem(position);
+	        		String url = (row.url != null && !row.url.equals("")) ?
+	        				row.url : row.content.optString("url");
+	        		
+					if (!row.getType().equals("note")) {
+						Bundle b = new Bundle();
+	        			b.putString("title", row.title);
+	        			b.putString("attachmentKey", row.key);
+	        			b.putString("content", url);
+	    				SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
+	        			int linkMode = row.content.optInt("linkMode", Attachment.MODE_LINKED_URL);
+	        			
+	        			if (settings.getBoolean("webdav_enabled", false))
+	        				b.putString("mode", "webdav");
+	        			else
+	        				b.putString("mode", "zfs");
+	        			
+	        			if (linkMode == Attachment.MODE_IMPORTED_FILE
+	        					|| linkMode == Attachment.MODE_IMPORTED_URL) {
+	        				loadFileAttachment(b);
+	        			} else {
+	        				//AttachmentActivity.this.b = b;
+	        				b.putInt("id",ZandyDialogFragment.DIALOG_NOTE);
+			        		b.putInt("title",R.string.view_online_warning);
+	        				ZandyDialogFragment newFragment = ZandyDialogFragment.newInstance(AttachmentActivity.this,b);
+	        		        newFragment.show(getSupportFragmentManager(), "view_online_warning");
+	        			}
+					}
+	        		
+					if (row.getType().equals("note")) {
+						Bundle b = new Bundle();
+						b.putString("attachmentKey", row.key);
+						b.putString("itemKey", itemKey);
+						b.putString("content", row.content.optString("note", ""));
+						//removeDialog(DIALOG_NOTE);
+						//AttachmentActivity.this.b = b;
+						b.putInt("id",ZandyDialogFragment.DIALOG_NOTE);
+						b.putInt("title",R.string.view_online_warning);
+	    				ZandyDialogFragment newFragment = ZandyDialogFragment.newInstance(AttachmentActivity.this,b);
+	    		        newFragment.show(getSupportFragmentManager(), "view_online_warning");
+					}
+					return true;
+	        	}
+	        });
+			
+		}
+	}
 	
 	/** 
 	 * For <= Android 2.1 (API 7), we can't pass bundles to showDialog(), so set this instead
@@ -87,7 +168,6 @@ public class AttachmentActivity extends FragmentActivity implements DialogClickM
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        
         tmpFiles = new ArrayList<File>();
         
         db = new Database(this);
@@ -96,6 +176,7 @@ public class AttachmentActivity extends FragmentActivity implements DialogClickM
         final String itemKey = getIntent().getStringExtra("com.gimranov.zandy.app.itemKey");
         Item item = Item.load(itemKey, db);
         this.item = item;
+        this.itemKey=itemKey;
         
         if (item == null) {
         	Log.e(TAG, "AttachmentActivity started without itemKey; finishing.");
@@ -112,7 +193,7 @@ public class AttachmentActivity extends FragmentActivity implements DialogClickM
          * Since it's no longer a simple TextView, we need to override getView, but
          * we can do that anonymously.
          */
-        listFragment=new ListFragment();
+        listFragment=new MyListFragment();
         listFragment.setListAdapter(new ArrayAdapter<Attachment>(this, R.layout.list_attach, rows) {
         	@Override
         	public View getView(int position, View convertView, ViewGroup parent) {
@@ -159,8 +240,16 @@ public class AttachmentActivity extends FragmentActivity implements DialogClickM
         		return row;
         	}
         });
-        
-        ListView lv = listFragment.getListView();
+        //MyListFragment.instantiate(getBaseContext(), listFragment.getClass().getName());
+        FrameLayout frame = new FrameLayout(this);
+        frame.setId(CONTENT_VIEW_ID);
+        setContentView(frame);
+
+        if (savedInstanceState == null) {
+        	getSupportFragmentManager().beginTransaction().add(CONTENT_VIEW_ID, listFragment).commit();
+        }
+        /*
+        ListView lv=listFragment.getListView();
         lv.setTextFilterEnabled(true);
         lv.setOnItemClickListener(new OnItemClickListener() {
         	// Warning here because Eclipse can't tell whether my ArrayAdapter is
@@ -229,7 +318,7 @@ public class AttachmentActivity extends FragmentActivity implements DialogClickM
 				}
 				return true;
         	}
-        });
+        });*/
     }
     
     @Override
@@ -429,6 +518,7 @@ public class AttachmentActivity extends FragmentActivity implements DialogClickM
     	case ZandyDialogFragment.DIALOG_CONFIRM_DELETE:
     		Attachment a = Attachment.load(bundle.getString("attachmentKey"), db);
     		a.delete(db);
+    		@SuppressWarnings("unchecked")
     		ArrayAdapter<Attachment> la = (ArrayAdapter<Attachment>) listFragment.getListAdapter();
     		la.clear();
     		for (Attachment at : Attachment.forItem(Item.load(bundle.getString("itemKey"), db), db)) {
@@ -449,7 +539,8 @@ public class AttachmentActivity extends FragmentActivity implements DialogClickM
     			att.dirty = APIRequest.API_DIRTY;
     			att.save(db);
     		}
-    		ArrayAdapter<Attachment> la1 = (ArrayAdapter<Attachment>) listFragment.getListAdapter();
+    		@SuppressWarnings("unchecked")
+			ArrayAdapter<Attachment> la1 = (ArrayAdapter<Attachment>) listFragment.getListAdapter();
     		la1.clear();
     		for (Attachment a1 : Attachment.forItem(Item.load(bundle.getString("itemKey"), db), db)) {
     			la1.add(a1);
@@ -463,7 +554,6 @@ public class AttachmentActivity extends FragmentActivity implements DialogClickM
 
 	@Override
 	public void doNeutralClick(Bundle bundle) {
-		// TODO Auto-generated method stub
 		switch (bundle.getInt("id"))
 		{
 			case ZandyDialogFragment.DIALOG_NOTE:
@@ -481,7 +571,6 @@ public class AttachmentActivity extends FragmentActivity implements DialogClickM
 	
 	@Override
 	public void doNegativeClick(Bundle bundle) {
-		// TODO Auto-generated method stub
 		switch (bundle.getInt("id"))
 		{
 			case ZandyDialogFragment.DIALOG_NOTE:
