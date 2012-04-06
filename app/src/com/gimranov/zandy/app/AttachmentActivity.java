@@ -129,7 +129,6 @@ public class AttachmentActivity extends FragmentActivity implements DialogClickM
 	        					|| linkMode == Attachment.MODE_IMPORTED_URL) {
 	        				loadFileAttachment(b);
 	        			} else {
-	        				//AttachmentActivity.this.b = b;
 	        				b.putInt("id",ZandyDialogFragment.DIALOG_NOTE);
 			        		b.putInt("title",R.string.view_online_warning);
 	        				ZandyDialogFragment newFragment = ZandyDialogFragment.newInstance(AttachmentActivity.this,b);
@@ -240,7 +239,6 @@ public class AttachmentActivity extends FragmentActivity implements DialogClickM
         		return row;
         	}
         });
-        //MyListFragment.instantiate(getBaseContext(), listFragment.getClass().getName());
         FrameLayout frame = new FrameLayout(this);
         frame.setId(CONTENT_VIEW_ID);
         setContentView(frame);
@@ -248,77 +246,6 @@ public class AttachmentActivity extends FragmentActivity implements DialogClickM
         if (savedInstanceState == null) {
         	getSupportFragmentManager().beginTransaction().add(CONTENT_VIEW_ID, listFragment).commit();
         }
-        /*
-        ListView lv=listFragment.getListView();
-        lv.setTextFilterEnabled(true);
-        lv.setOnItemClickListener(new OnItemClickListener() {
-        	// Warning here because Eclipse can't tell whether my ArrayAdapter is
-        	// being used with the correct parametrization.
-        	@SuppressWarnings("unchecked")
-			public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-        		// If we have a click on an entry, show its note
-        		ArrayAdapter<Attachment> adapter = (ArrayAdapter<Attachment>) parent.getAdapter();
-        		Attachment row = adapter.getItem(position);
-        		
-        		if (row.content.has("note")) {
-	    	    	Log.d(TAG, "Trying to start note view activity for: "+row.key);
-	    	    	Intent i = new Intent(getBaseContext(), NoteActivity.class);
-	    	    	i.putExtra("com.gimranov.zandy.app.attKey", row.key);//row.content.optString("note", ""));
-	    	    	startActivity(i);
-				}
-        	}
-        });
-        lv.setOnItemLongClickListener(new OnItemLongClickListener() {
-        	// Warning here because Eclipse can't tell whether my ArrayAdapter is
-        	// being used with the correct parametrization.
-        	@SuppressWarnings("unchecked")
-			public boolean onItemLongClick(AdapterView<?> parent, View view, int position, long id) {
-        		// If we have a long click on an entry, do something...
-        		ArrayAdapter<Attachment> adapter = (ArrayAdapter<Attachment>) parent.getAdapter();
-        		Attachment row = adapter.getItem(position);
-        		String url = (row.url != null && !row.url.equals("")) ?
-        				row.url : row.content.optString("url");
-        		
-				if (!row.getType().equals("note")) {
-					Bundle b = new Bundle();
-        			b.putString("title", row.title);
-        			b.putString("attachmentKey", row.key);
-        			b.putString("content", url);
-    				SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
-        			int linkMode = row.content.optInt("linkMode", Attachment.MODE_LINKED_URL);
-        			
-        			if (settings.getBoolean("webdav_enabled", false))
-        				b.putString("mode", "webdav");
-        			else
-        				b.putString("mode", "zfs");
-        			
-        			if (linkMode == Attachment.MODE_IMPORTED_FILE
-        					|| linkMode == Attachment.MODE_IMPORTED_URL) {
-        				loadFileAttachment(b);
-        			} else {
-        				//AttachmentActivity.this.b = b;
-        				b.putInt("id",ZandyDialogFragment.DIALOG_NOTE);
-		        		b.putInt("title",R.string.view_online_warning);
-        				ZandyDialogFragment newFragment = ZandyDialogFragment.newInstance(AttachmentActivity.this,b);
-        		        newFragment.show(getSupportFragmentManager(), "view_online_warning");
-        			}
-				}
-        		
-				if (row.getType().equals("note")) {
-					Bundle b = new Bundle();
-					b.putString("attachmentKey", row.key);
-					b.putString("itemKey", itemKey);
-					b.putString("content", row.content.optString("note", ""));
-					//removeDialog(DIALOG_NOTE);
-					//AttachmentActivity.this.b = b;
-					b.putInt("id",ZandyDialogFragment.DIALOG_NOTE);
-					b.putInt("title",R.string.view_online_warning);
-    				ZandyDialogFragment newFragment = ZandyDialogFragment.newInstance(AttachmentActivity.this,b);
-    		        newFragment.show(getSupportFragmentManager(), "view_online_warning");
-				}
-				return true;
-        	}
-        });*/
     }
     
     @Override

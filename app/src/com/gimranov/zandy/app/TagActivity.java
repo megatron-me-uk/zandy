@@ -18,13 +18,10 @@ package com.gimranov.zandy.app;
 
 import java.util.ArrayList;
 
-import android.app.AlertDialog;
-import android.app.Dialog;
-import android.app.ListActivity;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
-import android.text.Editable;
+import android.support.v4.app.FragmentActivity;
+import android.support.v4.app.ListFragment;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -36,10 +33,9 @@ import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
 import android.widget.AdapterView.OnItemLongClickListener;
 import android.widget.ArrayAdapter;
-import android.widget.EditText;
+import android.widget.FrameLayout;
 import android.widget.ListView;
 import android.widget.TextView;
-import android.widget.TextView.BufferType;
 import android.widget.Toast;
 
 import com.gimranov.zandy.app.data.Database;
@@ -54,18 +50,60 @@ import com.gimranov.zandy.app.task.ZoteroAPITask;
  * @author ajlyon
  *
  */
-public class TagActivity extends ListActivity {
+public class TagActivity extends FragmentActivity implements DialogClickMethods {
 
 	private static final String TAG = "com.gimranov.zandy.app.TagActivity";
-	
-	static final int DIALOG_TAG = 3;
-	static final int DIALOG_CONFIRM_NAVIGATE = 4;	
+
+	private static final int CONTENT_VIEW_ID = 1;	
 	
 	private Item item;
 	
 	private Database db;
-
-	protected Bundle b = new Bundle();
+	
+	MyListFragment listFragment;
+	public class MyListFragment extends ListFragment {
+		public void onViewCreated(View view, Bundle savedInstanceState){
+			if(this.getListView()==null)
+				return;
+	        ListView lv = listFragment. getListView();
+	        lv.setTextFilterEnabled(true);
+	        lv.setOnItemClickListener(new OnItemClickListener() {
+	        	// Warning here because Eclipse can't tell whether my ArrayAdapter is
+	        	// being used with the correct parametrization.
+				public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+	        		// If we have a click on an entry, prompt to view that tag's items.
+	        		@SuppressWarnings("unchecked")
+					ArrayAdapter<Bundle> adapter = (ArrayAdapter<Bundle>) parent.getAdapter();
+	        		Bundle row = adapter.getItem(position);
+	        		row.putInt("id",ZandyDialogFragment.DIALOG_CONFIRM_NAVIGATE);
+	        		row.putInt("title",R.string.tag_view_confirm);
+					ZandyDialogFragment newFragment = ZandyDialogFragment.newInstance(TagActivity.this,row);
+			        newFragment.show(getSupportFragmentManager(), "tag_view_confirm");
+	        	}
+	        });
+	        
+	        /*
+	         * On long click, we bring up an edit dialog.
+	         */
+	        lv.setOnItemLongClickListener(new OnItemLongClickListener() {
+	        	/*
+	        	 * Same annotation as in onItemClick(..), above.
+	        	 */
+	        	@SuppressWarnings("unchecked")
+				public boolean onItemLongClick(AdapterView<?> parent, View view, int position, long id) {
+	     			// If we have a long click on an entry, show an editor
+	        		ArrayAdapter<Bundle> adapter = (ArrayAdapter<Bundle>) parent.getAdapter();
+	        		Bundle row = adapter.getItem(position);
+	        		
+    				row.putInt("id",ZandyDialogFragment.DIALOG_TAG);
+	        		row.putInt("title",R.string.tag_edit);
+    				ZandyDialogFragment newFragment = ZandyDialogFragment.newInstance(TagActivity.this,row);
+    		        newFragment.show(getSupportFragmentManager(), "tag_edit");
+	        		return true;
+	          }
+	        });
+		}
+	}
 	
     /** Called when the activity is first created. */
     @Override
@@ -88,7 +126,8 @@ public class TagActivity extends ListActivity {
          * Since it's no longer a simple TextView, we need to override getView, but
          * we can do that anonymously.
          */
-        setListAdapter(new ArrayAdapter<Bundle>(this, R.layout.list_data, rows) {
+        listFragment=new MyListFragment();
+        listFragment.setListAdapter(new ArrayAdapter<Bundle>(this, R.layout.list_data, rows) {
         	@Override
         	public View getView(int position, View convertView, ViewGroup parent) {
         		View row;
@@ -114,42 +153,14 @@ public class TagActivity extends ListActivity {
         		return row;
         	}
         });
+        FrameLayout frame = new FrameLayout(this);
+        frame.setId(CONTENT_VIEW_ID);
+        setContentView(frame);
         
-        ListView lv = getListView();
-        lv.setTextFilterEnabled(true);
-        lv.setOnItemClickListener(new OnItemClickListener() {
-        	// Warning here because Eclipse can't tell whether my ArrayAdapter is
-        	// being used with the correct parametrization.
-        	@SuppressWarnings("unchecked")
-			public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-        		// If we have a click on an entry, prompt to view that tag's items.
-        		ArrayAdapter<Bundle> adapter = (ArrayAdapter<Bundle>) parent.getAdapter();
-        		Bundle row = adapter.getItem(position);
-      			removeDialog(DIALOG_CONFIRM_NAVIGATE);
-      			TagActivity.this.b = row;
-       			showDialog(DIALOG_CONFIRM_NAVIGATE);
-        	}
-        });
+        if (savedInstanceState == null) {
+        	getSupportFragmentManager().beginTransaction().add(CONTENT_VIEW_ID, listFragment).commit();
+        }
         
-        /*
-         * On long click, we bring up an edit dialog.
-         */
-        lv.setOnItemLongClickListener(new OnItemLongClickListener() {
-        	/*
-        	 * Same annotation as in onItemClick(..), above.
-        	 */
-        	@SuppressWarnings("unchecked")
-			public boolean onItemLongClick(AdapterView<?> parent, View view, int position, long id) {
-     			// If we have a long click on an entry, show an editor
-        		ArrayAdapter<Bundle> adapter = (ArrayAdapter<Bundle>) parent.getAdapter();
-        		Bundle row = adapter.getItem(position);
-        		
-    			removeDialog(DIALOG_TAG);
-    			TagActivity.this.b=row;
-        		showDialog(DIALOG_TAG);
-        		return true;
-          }
-        });
 
     }
     
@@ -164,64 +175,6 @@ public class TagActivity extends ListActivity {
     	if (db == null) db = new Database(this);
     	super.onResume();
     }
-    
-	protected Dialog onCreateDialog(int id) {
-		@SuppressWarnings("unused")
-		final int type = b.getInt("type");
-		final String tag = b.getString("tag");
-		final String itemKey = b.getString("itemKey");
-		AlertDialog dialog;
-		
-		switch (id) {
-		/* Simple editor for a single tag */
-		case DIALOG_TAG:			
-			final EditText input = new EditText(this);
-			input.setText(tag, BufferType.EDITABLE);
-			
-			dialog = new AlertDialog.Builder(this)
-	    	    .setTitle(getResources().getString(R.string.tag_edit))
-	    	    .setView(input)
-	    	    .setPositiveButton(getResources().getString(R.string.ok), new DialogInterface.OnClickListener() {
-	    	        @SuppressWarnings("unchecked")
-					public void onClick(DialogInterface dialog, int whichButton) {
-	    	            Editable value = input.getText();
-	    	            Log.d(TAG, "Got tag: "+value.toString());
-	    	            Item.setTag(itemKey, tag, value.toString(), 0, db);
-	    	            Item item = Item.load(itemKey, db);
-	    	            Log.d(TAG, "Have JSON: "+item.getContent().toString());
-	    	            ArrayAdapter<Bundle> la = (ArrayAdapter<Bundle>) getListAdapter();
-	    	            la.clear();
-	    	            for (Bundle b : item.tagsToBundleArray()) {
-	    	            	la.add(b);
-	    	            }
-	    	            la.notifyDataSetChanged();
-	    	        }
-	    	    }).setNegativeButton(getResources().getString(R.string.cancel), new DialogInterface.OnClickListener() {
-	    	        public void onClick(DialogInterface dialog, int whichButton) {
-	    	        	// do nothing
-	    	        }
-	    	    }).create();
-			return dialog;
-		case DIALOG_CONFIRM_NAVIGATE:
-			dialog = new AlertDialog.Builder(this)
-		    	    .setTitle(getResources().getString(R.string.tag_view_confirm))
-		    	    .setPositiveButton(getResources().getString(R.string.tag_view), new DialogInterface.OnClickListener() {
-						public void onClick(DialogInterface dialog, int whichButton) {
-							Intent i = new Intent(getBaseContext(), ItemActivity.class);
-		    		    	i.putExtra("com.gimranov.zandy.app.tag", tag);
-		        	    	startActivity(i);
-		    	        }
-		    	    }).setNegativeButton(getResources().getString(R.string.cancel), new DialogInterface.OnClickListener() {
-		    	        public void onClick(DialogInterface dialog, int whichButton) {
-		    	        	// do nothing
-		    	        }
-		    	    }).create();
-			return dialog;
-		default:
-			Log.e(TAG, "Invalid dialog requested");
-			return null;
-		}
-	}
                
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -250,9 +203,11 @@ public class TagActivity extends ListActivity {
     		row.putString("tag", "");
     		row.putString("itemKey", this.item.getKey());
     		row.putInt("type", 0);
-			removeDialog(DIALOG_TAG);
-			this.b = row;
-    		showDialog(DIALOG_TAG);
+
+			row.putInt("id",ZandyDialogFragment.DIALOG_TAG);
+    		row.putInt("title",R.string.tag_edit);
+			ZandyDialogFragment newFragment = ZandyDialogFragment.newInstance(TagActivity.this,row);
+	        newFragment.show(getSupportFragmentManager(), "tag_edit");
             return true;
         case R.id.do_prefs:
             startActivity(new Intent(this, SettingsActivity.class));
@@ -261,4 +216,37 @@ public class TagActivity extends ListActivity {
             return super.onOptionsItemSelected(item);
         }
     }
+
+	@Override
+	public void doPositiveClick(Bundle bundle) {
+		switch (bundle.getInt("id")) {
+		case ZandyDialogFragment.DIALOG_TAG:
+            Item.setTag(bundle.getString("itemKey"), bundle.getString("tag"), bundle.getString("fixed"), 0, db);
+            Item item = Item.load(bundle.getString("itemKey"), db);
+            Log.d(TAG, "Have JSON: "+item.getContent().toString());
+            @SuppressWarnings("unchecked")
+			ArrayAdapter<Bundle> la = (ArrayAdapter<Bundle>) listFragment.getListAdapter();
+            la.clear();
+            for (Bundle b : item.tagsToBundleArray()) {
+            	la.add(b);
+            }
+            la.notifyDataSetChanged();
+            break;
+		case ZandyDialogFragment.DIALOG_CONFIRM_NAVIGATE:
+			Intent i = new Intent(getBaseContext(), ItemActivity.class);
+	    	i.putExtra("com.gimranov.zandy.app.tag", bundle.getString("tag"));
+	    	startActivity(i);
+	    	break;
+		}
+	}
+
+	@Override
+	public void doNegativeClick(Bundle savedInstanceState) {
+		
+	}
+
+	@Override
+	public void doNeutralClick(Bundle savedInstanceState) {
+		
+	}
 }

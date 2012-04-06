@@ -16,6 +16,7 @@ public class ZandyDialogFragment extends DialogFragment {
 	static final int DIALOG_CONFIRM_NAVIGATE = 4;
 	static final int DIALOG_NOTE = 3;
 	static final int DIALOG_NEW = 1;
+	static final int DIALOG_TAG = 2;
 	private static final String TAG = "com.gimranov.zandy.app.ZandyDialogFragment";
 	DialogClickMethods parent;
 	private Bundle bundle;
@@ -35,6 +36,31 @@ public class ZandyDialogFragment extends DialogFragment {
 		int title = bundle.getInt("title");
 
 		switch (id) {
+		case DIALOG_TAG:
+			final String tag = bundle.getString("tag");
+			final EditText input = new EditText(getActivity());
+			input.setText(tag, BufferType.EDITABLE);
+			
+			return new AlertDialog.Builder(getActivity())
+	    	    	.setTitle(title)
+	    	    	.setView(input)
+	    	    	.setPositiveButton(R.string.ok,
+	    	    			new DialogInterface.OnClickListener() {
+	    	    				public void onClick(DialogInterface dialog,
+	    	    						int whichButton) {
+	    		    	            Editable value = input.getText();
+	    		    	            String fixed=value.toString();
+	    							bundle.putString("fixed", fixed);
+	    	    					parent.doPositiveClick(bundle);
+	    	    				}
+	    	        		})
+	    	        .setNegativeButton(R.string.cancel,
+	    	        		new DialogInterface.OnClickListener() {
+	    	        			public void onClick(DialogInterface dialog,
+	    	        					int whichButton) {
+									parent.doNegativeClick(bundle);
+	    	        			}
+	    	        		}).create();
 		case DIALOG_CONFIRM_DELETE:
 			return new AlertDialog.Builder(getActivity())
 					// .setIcon(R.drawable.alert_dialog_icon)
@@ -72,17 +98,17 @@ public class ZandyDialogFragment extends DialogFragment {
 								}
 							}).create();
 		case DIALOG_NOTE:
-			final EditText input = new EditText(getActivity());
-			input.setText(bundle.getString("content"), BufferType.EDITABLE);
+			final EditText input1 = new EditText(getActivity());
+			input1.setText(bundle.getString("content"), BufferType.EDITABLE);
 
 			AlertDialog.Builder builder = new AlertDialog.Builder(getActivity())
 					.setTitle(getResources().getString(R.string.note))
-					.setView(input)
+					.setView(input1)
 					.setPositiveButton(getResources().getString(R.string.ok),
 							new DialogInterface.OnClickListener() {
 								public void onClick(DialogInterface dialog,
 										int whichButton) {
-									Editable value = input.getText();
+									Editable value = input1.getText();
 									String fixed = value.toString().replaceAll(
 											"\n\n", "\n<br>");
 									bundle.putString("fixed", fixed);
