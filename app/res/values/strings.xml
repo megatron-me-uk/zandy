@@ -88,6 +88,7 @@
 	<string name="tag_view_confirm">View items for this tag?</string>
  	<string name="tag_view">View</string>
  	<string name="tag_viewing_items">Tag: %s</string>
+    <string name="tag_delete_confirm">Remove this tag?</string>
 	<!-- Collections -->
 	<string name="collections">Collections</string>
 	<string name="collections_for_item">Collections containing %s</string>

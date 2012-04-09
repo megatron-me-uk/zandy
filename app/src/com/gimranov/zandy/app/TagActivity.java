@@ -237,12 +237,23 @@ public class TagActivity extends FragmentActivity implements DialogClickMethods 
 	    	i.putExtra("com.gimranov.zandy.app.tag", bundle.getString("tag"));
 	    	startActivity(i);
 	    	break;
+		case ZandyDialogFragment.DIALOG_CONFIRM_DELETE:
+			Item.setTag(bundle.getString("itemKey"), bundle.getString("tag"), null, 0, db);
+			break;
 		}
 	}
 
 	@Override
-	public void doNegativeClick(Bundle savedInstanceState) {
-		
+	public void doNegativeClick(Bundle bundle) {
+		switch (bundle.getInt("id"))
+		{
+			case ZandyDialogFragment.DIALOG_NOTE:
+	            bundle.putInt("id", ZandyDialogFragment.DIALOG_CONFIRM_DELETE);
+	            bundle.putInt("title", R.string.tag_delete_confirm);
+		        ZandyDialogFragment newFragment = ZandyDialogFragment.newInstance(this,bundle);
+		        newFragment.show(getSupportFragmentManager(), "tag_delete_confirm");
+		        break;
+		}
 	}
 
 	@Override

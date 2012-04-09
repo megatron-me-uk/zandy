@@ -26,15 +26,12 @@ import oauth.signpost.exception.OAuthExpectationFailedException;
 import oauth.signpost.exception.OAuthMessageSignerException;
 import oauth.signpost.exception.OAuthNotAuthorizedException;
 import oauth.signpost.http.HttpParameters;
-import android.app.Activity;
-import android.app.AlertDialog;
-import android.app.Dialog;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
+import android.support.v4.app.FragmentActivity;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -50,7 +47,7 @@ import com.gimranov.zandy.app.data.ItemCollection;
 import com.gimranov.zandy.app.task.APIRequest;
 import com.gimranov.zandy.app.task.ZoteroAPITask;
 
-public class MainActivity extends Activity implements OnClickListener {
+public class MainActivity extends FragmentActivity implements OnClickListener, DialogClickMethods{
 	private CommonsHttpOAuthConsumer httpOAuthConsumer;
 	private OAuthProvider httpOAuthProvider;
 
@@ -59,7 +56,7 @@ public class MainActivity extends Activity implements OnClickListener {
 	static final int DIALOG_CHOOSE_COLLECTION = 1;
 	
 	private Database db;
-	private Bundle b = new Bundle();
+	ArrayList<ItemCollection> collections;
 	
 	/** Called when the activity is first created. */
 	@Override
@@ -86,9 +83,17 @@ public class MainActivity extends Activity implements OnClickListener {
 			
 			Bundle b = new Bundle();
 			b.putString("url", extras.getString("android.intent.extra.TEXT"));
-			b.putString("title", extras.getString("android.intent.extra.SUBJECT"));
-			this.b = b;
-			showDialog(DIALOG_CHOOSE_COLLECTION);
+			b.putString("subject", extras.getString("android.intent.extra.SUBJECT"));
+			b.putInt("title",R.string.choose_parent_collection);
+			collections = ItemCollection.getCollections(db);
+			int size = collections.size();
+			String[] collectionNames = new String[size];
+			for (int i = 0; i < size; i++) {
+				collectionNames[i] = collections.get(i).getTitle();
+			}
+			b.putStringArray("collectionNames", collectionNames);
+	        ZandyDialogFragment newFragment = ZandyDialogFragment.newInstance(this,b);
+	        newFragment.show(getSupportFragmentManager(), "tag_delete_confirm");
 		}
 
 		setContentView(R.layout.main);
@@ -209,9 +214,17 @@ public class MainActivity extends Activity implements OnClickListener {
 				
 				Bundle b = new Bundle();
 				b.putString("url", extras.getString("android.intent.extra.TEXT"));
-				b.putString("title", extras.getString("android.intent.extra.SUBJECT"));
-				this.b=b;
-				showDialog(DIALOG_CHOOSE_COLLECTION);
+				b.putString("subject", extras.getString("android.intent.extra.SUBJECT"));
+				b.putInt("title",R.string.choose_parent_collection);
+				collections = ItemCollection.getCollections(db);
+				int size = collections.size();
+				String[] collectionNames = new String[size];
+				for (int i = 0; i < size; i++) {
+					collectionNames[i] = collections.get(i).getTitle();
+				}
+				b.putStringArray("collectionNames", collectionNames);
+		        ZandyDialogFragment newFragment = ZandyDialogFragment.newInstance(this,b);
+		        newFragment.show(getSupportFragmentManager(), "tag_delete_confirm");
 				return;
 			}
 		
@@ -334,47 +347,42 @@ public class MainActivity extends Activity implements OnClickListener {
 			return super.onOptionsItemSelected(item);
 		}
 	}
-	
-	protected Dialog onCreateDialog(int id) {
-		final String url = b.getString("url");
-		final String title = b.getString("title");
-		AlertDialog dialog;
-		switch (id) {			
-		case DIALOG_CHOOSE_COLLECTION:
-			AlertDialog.Builder builder = new AlertDialog.Builder(this);
-			// Now we're dealing with share link, it seems.
-			// For now, just add it to the main library-- we'd like to let the person choose a library,
-			// but not yet.
-			final ArrayList<ItemCollection> collections = ItemCollection.getCollections(db);
-			int size = collections.size();
-			String[] collectionNames = new String[size];
-			for (int i = 0; i < size; i++) {
-				collectionNames[i] = collections.get(i).getTitle();
-			}
-			builder.setTitle(getResources().getString(R.string.choose_parent_collection))
-		    	    .setItems(collectionNames, new DialogInterface.OnClickListener() {
-						public void onClick(DialogInterface dialog, int pos) {
-		    	            Item item = new Item(getBaseContext(), "webpage");
-		    	            item.save(db);
-		    	            Log.d(TAG,"New item has key: "+item.getKey() + ", dbId: "+item.dbId);
-							Item.set(item.getKey(), "url", url, db);
-							Item.set(item.getKey(), "title", title, db);
-							Item.setTag(item.getKey(), null, "#added-by-zandy", 1, db);
-							collections.get(pos).add(item);
-							collections.get(pos).saveChildren(db);
-							Log.d(TAG, "Loading item data with key: "+item.getKey());
-							// We create and issue a specified intent with the necessary data
-					    	Intent i = new Intent(getBaseContext(), ItemDataActivity.class);
-					    	i.putExtra("com.gimranov.zandy.app.itemKey", item.getKey());
-					    	i.putExtra("com.gimranov.zandy.app.itemDbId", item.dbId);
-					    	startActivity(i);
-		    	        }
-		    	    });
-			dialog = builder.create();
-			return dialog;
-		default:
-			Log.e(TAG, "Invalid dialog requested");
-			return null;
+
+	@Override
+	public void doPositiveClick(Bundle bundle) {
+		switch(bundle.getInt("id"))
+		{
+		case ZandyDialogFragment.DIALOG_CHOOSE_COLLECTION:
+			Item item = new Item(getBaseContext(), "webpage");
+			item.save(db);
+			Log.d(TAG,"New item has key: "+item.getKey() + ", dbId: "+item.dbId);
+			Item.set(item.getKey(), "url", bundle.getString("url"), db);
+			Item.set(item.getKey(), "title", bundle.getString("subject"), db);
+			Item.setTag(item.getKey(), null, "#added-by-zandy", 1, db);
+			collections.get(bundle.getInt("pos")).add(item);
+			collections.get(bundle.getInt("pos")).saveChildren(db);
+			Log.d(TAG, "Loading item data with key: "+item.getKey());
+			// We create and issue a specified intent with the necessary data
+			Intent i = new Intent(getBaseContext(), ItemDataActivity.class);
+			i.putExtra("com.gimranov.zandy.app.itemKey", item.getKey());
+			i.putExtra("com.gimranov.zandy.app.itemDbId", item.dbId);
+			startActivity(i);
+			break;
 		}
+    	
+		
 	}
+
+	@Override
+	public void doNegativeClick(Bundle savedInstanceState) {
+		// Not Used
+		
+	}
+
+	@Override
+	public void doNeutralClick(Bundle savedInstanceState) {
+		// Not Used
+		
+	}
+	
 }

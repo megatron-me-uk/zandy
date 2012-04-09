@@ -16,20 +16,14 @@
  ******************************************************************************/
 package com.gimranov.zandy.app;
 
-import android.app.Activity;
-import android.app.AlertDialog;
-import android.app.Dialog;
-import android.content.DialogInterface;
 import android.os.Bundle;
-import android.text.Editable;
+import android.support.v4.app.FragmentActivity;
 import android.text.Html;
 import android.util.Log;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
-import android.widget.EditText;
 import android.widget.TextView;
-import android.widget.TextView.BufferType;
 import android.widget.Toast;
 
 import com.gimranov.zandy.app.data.Attachment;
@@ -43,7 +37,7 @@ import com.gimranov.zandy.app.task.APIRequest;
  * @author mlt
  *
  */
-public class NoteActivity extends Activity {
+public class NoteActivity extends FragmentActivity implements DialogClickMethods{
 
 	private static final String TAG = "com.gimranov.zandy.app.NoteActivity";
 	
@@ -85,7 +79,13 @@ public class NoteActivity extends Activity {
 		editButton.setOnClickListener(new OnClickListener() {
 			@Override
 			public void onClick(View arg0) {
-				showDialog(DIALOG_NOTE);
+				Bundle bundle =new Bundle();
+				bundle.putInt("title",R.string.note);
+				bundle.putString("content", att.content.optString("note", ""));
+				bundle.putInt("id", ZandyDialogFragment.DIALOG_NOTE);
+				bundle.putString("mode","new");
+		        ZandyDialogFragment newFragment = ZandyDialogFragment.newInstance(NoteActivity.this,bundle);
+		        newFragment.show(getSupportFragmentManager(), "note");
 			}
 		});
 		
@@ -93,42 +93,34 @@ public class NoteActivity extends Activity {
         if (!"note".equals(att.getType())) {
 			Toast.makeText(this, R.string.attachment_note_warning, Toast.LENGTH_LONG).show();
         }
-    } 
-    
-    protected Dialog onCreateDialog(int id) {
-		AlertDialog dialog;
-		switch (id) {
-		case DIALOG_NOTE:
-			final EditText input = new EditText(this);
-			input.setText(att.content.optString("note", ""), BufferType.EDITABLE);
-			
-			AlertDialog.Builder builder = new AlertDialog.Builder(this)
-	    	    .setTitle(getResources().getString(R.string.note))
-	    	    .setView(input)
-	    	    .setPositiveButton(getResources().getString(R.string.ok), new DialogInterface.OnClickListener() {
-					public void onClick(DialogInterface dialog, int whichButton) {
-	    	            Editable value = input.getText();
-	    	            String fixed = value.toString().replaceAll("\n\n", "\n<br>");
-	    	            att.setNoteText(fixed);
-	    	            att.dirty = APIRequest.API_DIRTY;
-	    	            att.save(db);
-	    	            
-				        TextView text = (TextView) findViewById(R.id.noteText);
-				        TextView title = (TextView) findViewById(R.id.noteTitle);
-				        title.setText(att.title);
-				        text.setText(Html.fromHtml(att.content.optString("note", "")));
-	    	        }
-	    	    }).setNeutralButton(getResources().getString(R.string.cancel),
-	    	    		new DialogInterface.OnClickListener() {
-	    	        public void onClick(DialogInterface dialog, int whichButton) {
-	    	        	// do nothing
-	    	        }
-	    	    });
-			dialog = builder.create();
-			return dialog;
-		default:
-			Log.e(TAG, "Invalid dialog requested");
-			return null;
+    }
+
+	@Override
+	public void doPositiveClick(Bundle bundle) {
+		switch (bundle.getInt("id")) {
+		case ZandyDialogFragment.DIALOG_NOTE:
+			att.setNoteText(bundle.getString("fixed"));
+            att.dirty = APIRequest.API_DIRTY;
+            att.save(db);
+            
+	        TextView text = (TextView) findViewById(R.id.noteText);
+	        TextView title = (TextView) findViewById(R.id.noteTitle);
+	        title.setText(att.title);
+	        text.setText(Html.fromHtml(att.content.optString("note", "")));
+			break;
 		}
+		
+	}
+
+	@Override
+	public void doNegativeClick(Bundle savedInstanceState) {
+		// Do nothing
+		
+	}
+
+	@Override
+	public void doNeutralClick(Bundle savedInstanceState) {
+		// DO nothing
+		
 	}
 }

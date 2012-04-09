@@ -673,9 +673,14 @@ public class Item {
 			Log.d(TAG, "Old: " + tags.toString());
 			// Allow adding a new tag
 			if (oldTag == null || oldTag.equals("")) {
+				if(newTag ==null || newTag.equals("")) 
+				{//Do Nothing
+				}
+				else{
 				Log.d(TAG, "Adding new tag: " + newTag);
 				newTags = tags.put(new JSONObject().put("tag", newTag).put(
 						"type", type));
+				}
 			} else {
 				// In other cases, we're removing or replacing a tag
 				for (int i = 0; i < tags.length(); i++) {
