@@ -20,7 +20,8 @@ public class ZandyDialogFragment extends DialogFragment {
 	static final int DIALOG_NOTE = 3;
 	static final int DIALOG_CONFIRM_NAVIGATE = 4;
 	static final int DIALOG_CONFIRM_DELETE = 5;
-	static final int DIALOG_CHOOSE_COLLECTION = 6;
+	static final int DIALOG_CHOOSE_COLLECTION = 6;   
+	static final int DIALOG_FILE_PROGRESS = 7; 
 	private static final String TAG = "com.gimranov.zandy.app.ZandyDialogFragment";
 	DialogClickMethods parent;
 	private Bundle bundle;

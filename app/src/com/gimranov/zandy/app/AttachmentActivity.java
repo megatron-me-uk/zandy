@@ -129,7 +129,7 @@ public class AttachmentActivity extends FragmentActivity implements DialogClickM
 	        					|| linkMode == Attachment.MODE_IMPORTED_URL) {
 	        				loadFileAttachment(b);
 	        			} else {
-	        				b.putInt("id",ZandyDialogFragment.DIALOG_NOTE);
+	        				b.putInt("id",ZandyDialogFragment.DIALOG_CONFIRM_NAVIGATE);
 			        		b.putInt("title",R.string.view_online_warning);
 	        				ZandyDialogFragment newFragment = ZandyDialogFragment.newInstance(AttachmentActivity.this,b);
 	        		        newFragment.show(getSupportFragmentManager(), "view_online_warning");
@@ -141,12 +141,10 @@ public class AttachmentActivity extends FragmentActivity implements DialogClickM
 						b.putString("attachmentKey", row.key);
 						b.putString("itemKey", itemKey);
 						b.putString("content", row.content.optString("note", ""));
-						//removeDialog(DIALOG_NOTE);
-						//AttachmentActivity.this.b = b;
 						b.putInt("id",ZandyDialogFragment.DIALOG_NOTE);
-						b.putInt("title",R.string.view_online_warning);
+						b.putInt("title",R.string.note);
 	    				ZandyDialogFragment newFragment = ZandyDialogFragment.newInstance(AttachmentActivity.this,b);
-	    		        newFragment.show(getSupportFragmentManager(), "view_online_warning");
+	    		        newFragment.show(getSupportFragmentManager(), "note");
 					}
 					return true;
 	        	}
@@ -310,8 +308,9 @@ public class AttachmentActivity extends FragmentActivity implements DialogClickM
 
 			mProgressDialog = new ProgressDialog(this);
 			mProgressDialog.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
-			mProgressDialog.setMessage(getResources().getString(R.string.attachment_downloading, R.string.attachment_downloading));
+			mProgressDialog.setMessage(getResources().getString(R.string.attachment_downloading, b.getString("title")));
 			mProgressDialog.setIndeterminate(true);
+			mProgressDialog.show();
 			
 			SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
 			progressThread = new ProgressThread(handler, b, settings, db, tmpFiles);
@@ -503,7 +502,6 @@ public class AttachmentActivity extends FragmentActivity implements DialogClickM
 			case ZandyDialogFragment.DIALOG_NOTE:
 	            bundle.putInt("id", ZandyDialogFragment.DIALOG_CONFIRM_DELETE);
 	            bundle.putInt("title", R.string.attachment_delete_confirm);
-	        	//removeDialog(DIALOG_CONFIRM_DELETE);
 		        ZandyDialogFragment newFragment = ZandyDialogFragment.newInstance(this,bundle);
 		        newFragment.show(getSupportFragmentManager(), "attachment_delete_confirm");
 		        break;
